@@ -1,0 +1,132 @@
+Solution for the problem duplicate form submission.
+
+When a duplicate form submission happens, we have 2 (or more) valid http requests. Http is a stateless protocol and if I perform the same operation twice, there is no control to avoid this. Can be two persons post the same information in different places. To avoid this problem we need add something in our application.
+
+Our web application has two component: the server and the client. We can put the responsability to prevent duplicate forms submissions to the server, creating a session and control the request. We can simplify add a token in one hidden input and use this to control the form submission (I can store in cache, like memcached or redis or memory, and validate/delete in the beginning of the process, avoid someone use this token twice). It is a lock control and it is very expensive. And can be hard to scale this.
+
+But If we want a good solution to prevent this problem without javascript we can avoid using something in the backend. For example we can use something like
+
+Plack::Middleware::CSRFBlock 
+
+with the option
+
+onetime => 1
+
+it will store the token in session. 
+
+Or we can put the responsability in the client. There are too much techniques to avoid this problem:
+
+1 - disable submit in the start of the process 
+2 - return false in the form submit from the second submit/click
+3 - do not use a form (send the data using ajax) and control this in the js
+
+The #3 option can store the data in memory/cookies and compare the next request with the previous. But it is hard to manage, depends of the complexity of the page/form.
+
+The #1 option is not a hard option but there are problems with return the submit to the original state. We can add a setTimeout to reset the form to avoid this.
+
+The #2 option can be interesting. I don't change the behavior of all buttons and I can control, in memory, the form submission. I choose this way.
+
+I create a small plugin for jQuery called control_form_submission (need a better name). Use this is simple:
+
+  $("#default").prevent_multiple_submissions();
+
+Done. Don't need extra code. Nothing. But how about validation? There is a hook called 'before': 
+
+  $("#validation").prevent_multiple_submissions({
+	before: function(form){
+		return form.valid();
+	}
+  });
+
+Using this, I can integrate with plugins like jQuery validate.
+
+And how about ajax forms? There is a hook called 'after':
+
+  $("#ajax").prevent_multiple_submissions({
+	after: function(form){
+		$.get('/a.js', function(data) {
+	  		console.log('Load was performed.',data);
+	  		$('#result').append("<p>" + data.message + ":" +$("#ajax .required").val()+ "</p>");
+		}, 'json');
+		return false;
+	} 
+  });
+
+I can prevent the duplicated submission. Easy. But I'm trapped on a page with a submit button who does not work!
+
+  $("#ajax").prevent_multiple_submissions({
+	timeout: 1000, // -1 or negative number disable this.
+	after: function(form){
+		$.get('/a.js', function(data) {
+	  		console.log('Load was performed.',data);
+	  		$('#result').append("<p>" + data.message + ":" +$("#ajax .required").val()+ "</p>");
+		}, 'json');
+		return false;
+	} 
+  });
+
+But How we can add one visual effect to warn the user to wait? using onBlock and onRead hooks.
+
+  // example more complete, with all options
+
+  $("#ajax").prevent_multiple_submissions({
+	timeout: 3000,
+	before: function(form){
+		return form.valid();
+	},	
+	after: function(form){
+		$.get('/a.js', function(data) {
+	  		console.log('Load was performed.',data);
+	  		$('#result').append("<p>" + data.message + ":" +$("#ajax .required").val()+ "</p>");
+		}, 'json');
+		return false; 
+	},
+	onBlock: function(form, timeout){
+		$('#warning').show();
+	},
+	onReady: function(form){
+		$('#warning').hide();
+	}
+  });
+
+onBlock/onRead must work together.
+
+Now I prevent all duplicated submissions in one second. And I can combine both solution to avoid a double-click and avoid submit the same information twice using after and before. If I submit '1' and submit '1' again and it is my intent it is not a duplicated submission by mistake or too much clicks. There is no free lunch.
+
+Demo:
+
+Enter in the same directory of this file ( Form ) and do:
+
+bash$ python -m SimpleHTTPServer   # or you can put this nginx, apache or any other web 
+
+and navigate to http://127.0.0.1:8000/
+
+I use SimpleHTTPServer because it is built-in in python.
+
+There are 5 forms in this page with a terrible style. Sorry.
+
+The most importante are the first two:
+
+first, ajax with my plugin and second, without.
+
+Tests:
+
+Enter in the same directory of this file ( Form ) and do:
+
+bash$ python -m SimpleHTTPServer
+
+and navigate to http://127.0.0.1:8000/test.html
+
+Final considerations:
+
+For me it is very hard to test. I try to look into submit event to verify and submit the same form more than one time using javascript, it is my best.
+
+What I do in one hour:
+
+The basic plugin, hooks after e before, timeout. tests.
+
+What I do in more than one our:
+
+I add the onBlock, onReady later and simplify the code. I try to add a small dancer app to handle ajax requests but the a.js is good enough. I try to add some tests with phantonJS but I spend more time learning than doing something useful. And write the documentation.
+
+Thanks.

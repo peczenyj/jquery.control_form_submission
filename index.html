@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>example of form submission</title>
+		<script src="http://code.jquery.com/jquery-1.8.3.min.js"></script>
+		<script src="http://jzaefferer.github.com/jquery-validation/jquery.validate.js"></script>
+		<script src="js/jquery.control_form_submission.js"></script>
+		<script>
+			$(document).ready(function(){
+				
+				//how to use this plugin with jQuery Validation
+				
+				$("#default").prevent_multiple_submissions();
+				
+				$("#validation").prevent_multiple_submissions({
+					before: function(form){
+						return form.valid();
+					}
+				});
+				
+				//how to use to post data with ajax
+				$("#ajax").prevent_multiple_submissions({
+					timeout: 3000,
+					after: function(form){
+						$.get('/a.js', function(data) {
+					  		console.log('Load was performed.',data);
+					  		$('#result').append("<p>" + data.message + ":" +$("#ajax .required").val()+ "</p>");
+						}, 'json');
+						return false;
+					},
+					onBlock: function(form, timeout){
+						$('#warning').show();
+					},
+					onReady: function(form){
+						$('#warning').hide();
+					}
+				});
+				
+				$("#ajax2").submit(function(){
+					$.get('/a.js', function(data) {
+				  		$('#result2').append("<p>" + data.message + ":" +$("#ajax2 .required").val()+ "</p>");
+					}, 'json');
+					return false;
+				});
+			});
+		</script>
+		<style>
+		div.form {
+			border-style: dotted;
+			padding: 20px;
+			margin: 20px;
+		}
+		#warning { 
+			display: none;
+			color: red;
+		}
+		</style>
+	</head>
+	<body>
+		<p>Ajax examples</p>
+		<div class="form">
+			<p>with prevent multiple submissions plugin + ajax (one second timeout)</p>
+			<form action="/" id="ajax">
+				<input type="text" name="field" class="required"></input>
+				<input type="submit" id="Y"></input>
+			</form>
+			<div id="warning">WAIT 3 SECONDS!</div>
+			<div id="result"></div>			
+		</div>
+			
+		<div class="form">
+			<p>only ajax</p>
+			<form action="/" id="ajax2">
+				<input type="text" name="field" class="required"></input>
+				<input type="submit" id="Y"></input>
+			</form>
+			<div id="result2"></div>			
+		</div>	
+
+		<hr/>
+		
+		<p>non ajax example - will navigate to /</p>
+		<div class="form">
+			<p>without prevent multiple submissions plugin </p>
+			<form action="/" id="normal">
+				<input type="text" name="field" class="required"></input>
+				<input type="submit" id="Y"></input>
+			</form>			
+		</div>
+		<div class="form">
+			<p>with prevent multiple submissions plugin</p>
+			<form action="/" id="default">
+				<input type="text" name="field" class="required"></input>
+				<input type="submit" id="Y"></input>
+			</form>			
+		</div>
+		<div class="form">
+			<p>with prevent multiple submissions plugin + validation</p>
+			<form action="/" id="validation">
+				<input type="text" name="field" class="required"></input>
+				<input type="submit" id="Y"></input>
+			</form>			
+		</div>															
+	</body>
+</html>
